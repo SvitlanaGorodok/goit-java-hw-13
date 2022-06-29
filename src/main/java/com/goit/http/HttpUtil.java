@@ -87,6 +87,17 @@ public class HttpUtil {
     }
 
     public static void getUserComments (Integer userId) throws IOException, InterruptedException {
+        int maxPostId = getMaxPostID(userId);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://jsonplaceholder.typicode.com/posts/" + String.valueOf(maxPostId) + "/comments"))
+                .GET()
+                .build();
+        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        List<Comment> comments = gson.fromJson(response.body(), new TypeToken<List<Comment>>(){}.getType());
+        writeCommentsToJson(comments, userId, maxPostId);
+    }
+
+    private static int getMaxPostID(Integer userId) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://jsonplaceholder.typicode.com/users/" + String.valueOf(userId) +"/posts"))
                 .GET()
@@ -94,15 +105,13 @@ public class HttpUtil {
         HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         List<Post> posts = gson.fromJson(response.body(), new TypeToken<List<Post>>(){}.getType());
         Integer maxPostId = posts.stream()
-                        .map(Post::getId)
-                        .max(Integer::compare)
-                        .get();
-        request = HttpRequest.newBuilder()
-                .uri(URI.create("https://jsonplaceholder.typicode.com/posts/" + String.valueOf(maxPostId) + "/comments"))
-                .GET()
-                .build();
-        response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        List<Comment> comments = gson.fromJson(response.body(), new TypeToken<List<Comment>>(){}.getType());
+                .map(Post::getId)
+                .max(Integer::compare)
+                .get();
+        return maxPostId;
+    }
+
+    private static void writeCommentsToJson (List<Comment> comments, Integer userId, int maxPostId){
         try (PrintWriter out = new PrintWriter(new FileWriter("user-"+ userId + "-post-" + maxPostId + "-comments.json")))
         {
             out.write(gson.toJson(comments));
